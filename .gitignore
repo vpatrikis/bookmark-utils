@@ -1,3 +1,5 @@
 # Intellij files
 .DS_Store
 .idea
+/src/bm_util.egg-info/
+/build/
