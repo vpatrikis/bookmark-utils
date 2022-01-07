@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 long_description = "Bookmarks utility project"
 
 setup(
-    name='bookmarks-util',
+    name='bookmark-util',
     version='1.0.0',
 
     description='This project is created to perform bookmark operation in python shell',
