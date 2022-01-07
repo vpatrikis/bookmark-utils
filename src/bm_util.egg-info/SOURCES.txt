@@ -1,0 +1,9 @@
+LICENSE.txt
+setup.py
+src/bm_util.egg-info/PKG-INFO
+src/bm_util.egg-info/SOURCES.txt
+src/bm_util.egg-info/dependency_links.txt
+src/bm_util.egg-info/requires.txt
+src/bm_util.egg-info/top_level.txt
+src/utils/__init__.py
+src/utils/bookmark_for_python_shell.py
