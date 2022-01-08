@@ -1,5 +1,18 @@
-# Intellij files
+# MacOS
 .DS_Store
-.idea
-/src/bm_util.egg-info/
-/build/
+
+# Intellij files
+.idea/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Python
+venv/
+build/
+dist/
+*.egg-info/
+.coverage.annotate/
+.pytest_cache/
