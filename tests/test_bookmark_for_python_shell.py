@@ -18,6 +18,7 @@ dir_here = os.path.dirname(os.path.abspath(__file__))
 
 
 class TestBookmark:
+    #--- Tests dependencies
     test_s3_bucket = "{}-{}-test".format(
         account_id,
         package_name.replace("_", "-"),
@@ -50,6 +51,7 @@ class TestBookmark:
             key = f"{cls.test_s3_prefix}/data/a.csv"
             s3.upload_file(path, Bucket=cls.test_s3_bucket, Key=key)
 
+    #--- Test cases
     def test_load_data_from_s3(self):
         bm = BookMarks(
             s3_bucket_name=self.test_s3_bucket,
