@@ -1,6 +1,7 @@
 """
 This simple utility reads the data from S3 and does checkpoint the information about last read location
 """
+
 import datetime
 
 import botocore.exceptions
@@ -271,11 +272,11 @@ def test_latest_data_only():
 def test_data_load():
 
     bm = BookMarks(
-        "bucket-for-datalab",
-        "folder-for-bookmark-test",
-        "csv",
-        "job_123",
-        "bookmark_table_abcd")
+        s3_bucket_name="bucket-for-datalab",
+        s3_location="folder-for-bookmark-test",
+        format_of_data="csv",
+        job_name="job_123",
+        dynamo_db_table_for_bookmark_storage="bookmark_table_abcd")
 
     bm.load_data_from_s3()
 
