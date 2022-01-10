@@ -33,7 +33,6 @@ class TestCreateDynamodbTableIfNotExists:
 
     def test_create_table(self):
         create_table_kwargs = dict(
-            TableName=self.table_name,
             KeySchema=[
                 {
                     "AttributeName": "the_hash_key",
