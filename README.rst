@@ -63,8 +63,11 @@ Dev Runbook
     $ pip install -r requirements-dev.txt
 
     # build artifacts locally
-    $ rm -r dist # remove exists build
-    $ python setup.py sdist bdist_wheel --universal
+    $ bash ./bin/build.sh
 
     # publish to https://pypi.org
-    $ twine upload dist/*
+    $ bash ./bin/publish.sh
+
+1. Then create a release branch ``release/x.y.z`` that match the version.
+2. Tag the repo from this branch using naming convention ``x.y.z``.
+3. Create a GitHub Release that name matching this version using naming convention ``x.y.z``, and upload the ``.whl`` file to the Release.

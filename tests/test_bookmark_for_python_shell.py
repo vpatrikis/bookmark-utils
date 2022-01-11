@@ -18,7 +18,7 @@ dir_here = os.path.dirname(os.path.abspath(__file__))
 
 
 class TestBookmark:
-    #--- Tests dependencies
+    # --- Tests dependencies
     test_s3_bucket = "{}-{}-test".format(
         account_id,
         package_name.replace("_", "-"),
@@ -46,19 +46,29 @@ class TestBookmark:
 
     @classmethod
     def setup_initial_data_files(cls):
+        # clear existing files
+        res = s3.list_objects_v2(
+            Bucket=cls.test_s3_bucket, Prefix=cls.test_s3_prefix, MaxKeys=1000,
+        )
+        for dct in res.get("Contents", []):
+            key = dct["Key"]
+            s3.delete_object(Bucket=cls.test_s3_bucket, Key=key)
+
+        # upload initial files
         for fname in os.listdir(os.path.join(dir_here, "data")):
             path = os.path.join(dir_here, "data", fname)
-            key = f"{cls.test_s3_prefix}/data/a.csv"
+            key = f"{cls.test_s3_prefix}/a.csv"
             s3.upload_file(path, Bucket=cls.test_s3_bucket, Key=key)
 
-    #--- Test cases
+    # --- Test cases
     def test_load_data_from_s3(self):
         bm = BookMarks(
             s3_bucket_name=self.test_s3_bucket,
             s3_location=self.test_s3_prefix,
             format_of_data="csv",
             job_name="job_123",
-            dynamo_db_table_for_bookmark_storage=self.test_dynamodb_table)
+            dynamo_db_table_for_bookmark_storage=self.test_dynamodb_table,
+        )
 
         bm.load_data_from_s3()
 

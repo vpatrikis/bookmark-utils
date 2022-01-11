@@ -13,6 +13,8 @@ import logging
 
 logger = logging.getLogger("root")
 from typing import List
+from .helpers import create_dynamodb_table_if_not_exists
+
 
 class BookMarks(object):
     valid_file_formats = ["csv", "parquet", "json", "xml"]
@@ -65,55 +67,49 @@ class BookMarks(object):
 
     @dynamo_db_table_for_bookmark_storage.setter
     def dynamo_db_table_for_bookmark_storage(self, value):
+        # Ensure the table exists (already created or just create a new one)
         dynamodb_boto3_client = boto3.client("dynamodb")
-        try:
-            table_schema = dynamodb_boto3_client.describe_table(
-                TableName=value)['Table']['KeySchema']
-            partition_key = [key['AttributeName'] for key in table_schema if key['KeyType'] == 'HASH'][0]
-            sort_key = [key['AttributeName'] for key in table_schema if key['KeyType'] == 'RANGE'][0]
-            if partition_key != "job_name":
-                raise Exception("Partition key name is incorrect. It should be job_name")
+        create_table_kwargs = dict(
+            TableName=value,
+            KeySchema=[
+                {
+                    'AttributeName': 'job_name',
+                    'KeyType': 'HASH'
+                },
+                {
+                    'AttributeName': 'bookmark_timestamp',
+                    'KeyType': 'RANGE'
+                }
+            ],
+            AttributeDefinitions=[
+                {
+                    'AttributeName': 'job_name',
+                    'AttributeType': 'S'
+                },
+                {
+                    'AttributeName': 'bookmark_timestamp',
+                    'AttributeType': 'N'
+                }
 
-            if sort_key != "bookmark_timestamp":
-                raise Exception("Sort key name is not incorrect. It should be bookmark_timestamp")
+            ],
+            BillingMode='PAY_PER_REQUEST'
+        )
+        create_dynamodb_table_if_not_exists(
+            dynamodb_client=dynamodb_boto3_client,
+            table_name=value,
+            create_table_kwargs=create_table_kwargs,
+        )
 
-        except dynamodb_boto3_client.exceptions.ResourceNotFoundException:
-            print("Table not found and new table is being created")
-            create_table_response = dynamodb_boto3_client.create_table(
-                TableName=value,
-                KeySchema=[
-                    {
-                        'AttributeName': 'job_name',
-                        'KeyType': 'HASH'
-                    },
-                    {
-                        'AttributeName': 'bookmark_timestamp',
-                        'KeyType': 'RANGE'
-                    }
-                ],
-                AttributeDefinitions=[
-                    {
-                        'AttributeName': 'job_name',
-                        'AttributeType': 'S'
-                    },
-                    {
-                        'AttributeName': 'bookmark_timestamp',
-                        'AttributeType': 'N'
-                    }
+        # validate schema
+        table_schema = dynamodb_boto3_client.describe_table(
+            TableName=value)['Table']['KeySchema']
+        partition_key = [key['AttributeName'] for key in table_schema if key['KeyType'] == 'HASH'][0]
+        sort_key = [key['AttributeName'] for key in table_schema if key['KeyType'] == 'RANGE'][0]
+        if partition_key != "job_name":  # pragma: no cover
+            raise Exception("Partition key name is incorrect. It should be job_name")
 
-                ],
-                BillingMode='PAY_PER_REQUEST'
-            )
-
-            create_table_http_response_code = create_table_response['ResponseMetadata']['HTTPStatusCode']
-            if create_table_http_response_code != 200:
-                raise Exception("Create table operation failed")
-
-            describe_table_response = dynamodb_boto3_client.describe_table(TableName=value)
-            table_status = describe_table_response['Table']['TableStatus']
-            while table_status == 'CREATING':
-                describe_table_response = dynamodb_boto3_client.describe_table(TableName=value)
-                table_status = describe_table_response['Table']['TableStatus']
+        if sort_key != "bookmark_timestamp":  # pragma: no cover
+            raise Exception("Sort key name is not incorrect. It should be bookmark_timestamp")
 
         self.__dynamo_db_table_for_bookmark_storage = value
 
@@ -129,7 +125,11 @@ class BookMarks(object):
     process s3 file location information
     """
 
-    def process_s3_location_information(self, s3_list_object_response):
+    def process_s3_location_information(self, s3_list_object_response):  # pragma: no cover
+        """
+        TODO: this method is not used, considering remove it
+        """
+
         files = sorted((f for f in s3_list_object_response['Contents'] if f['Key'].endswith(self.format_of_the_data)),
                        key=lambda file_name: file_name['LastModified'], reverse=True)
 
@@ -211,7 +211,7 @@ class BookMarks(object):
     This method reads the data from S3
     """
 
-    def load_data_from_s3(self):
+    def load_data_from_s3(self) -> pd.DataFrame:
         existing_timestamp = self.get_latest_timestamp_from_db()
         print("--------------->>>>>>>")
         print(f"existing timestamp {existing_timestamp}")
@@ -226,15 +226,17 @@ class BookMarks(object):
             for file in files_to_process:
                 filename = f"s3://{self.s3_bucket_name}/{file.key}"
                 print(f"loading the filename: {filename}")
-                df = wr.s3.read_csv(filename,encoding = 'ISO-8859-1')
+                df = wr.s3.read_csv(filename, encoding='ISO-8859-1')
                 dataframes_to_union.append(df)
 
             final_dataframe_with_latest_data = pd.concat(dataframes_to_union, axis=0, ignore_index=True)
             print(final_dataframe_with_latest_data)
             self.register_bookmark(latest_timestamp)
             print("Data Load completed successfully")
+            return final_dataframe_with_latest_data
 
-def test_register_bookmark():
+
+def test_register_bookmark():  # pragma: no cover
     bm = BookMarks(
         "bucket-for-datalab",
         "folder-for-bookmark",
@@ -244,7 +246,8 @@ def test_register_bookmark():
 
     bm.register_bookmark(datetime.datetime.fromtimestamp(0))
 
-def test_validation():
+
+def test_validation():  # pragma: no cover
     with pytest.raises(Exception) as ex:
         BookMarks(
             "bucket-for-datalab",
@@ -253,7 +256,8 @@ def test_validation():
             "job_123"
             "bookmark_table")
 
-def test_latest_data_only():
+
+def test_latest_data_only():  # pragma: no cover
     bm = BookMarks(
         "bucket-for-datalab",
         "folder-for-bookmark-test",
@@ -267,9 +271,10 @@ def test_latest_data_only():
     print(files)
     print("---------->>>>>>")
 
+
 # from bookmarks_library import Bookmarks
 
-def test_data_load():
+def test_data_load():  # pragma: no cover
 
     bm = BookMarks(
         s3_bucket_name="bucket-for-datalab",
@@ -281,7 +286,7 @@ def test_data_load():
     bm.load_data_from_s3()
 
 
-def test_s3_latest_data():
+def test_s3_latest_data():  # pragma: no cover
     import boto3
     import datetime
     # bucket Name
@@ -304,4 +309,3 @@ def test_s3_latest_data():
 
     files = "\n".join(files)
     print(f"files are --> {files})")
-
