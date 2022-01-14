@@ -8,7 +8,7 @@ __author_email__ = "daruns@amazon.com"
 
 # API
 try:
-    from .bookmark_for_python_shell import BookMarks
+    from .bookmark_for_python_shell import DataLoader
 except ImportError: # pragma: no cover
     pass
 except: # pragma: no cover

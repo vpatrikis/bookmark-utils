@@ -4,7 +4,6 @@ This simple utility reads the data from S3 and does checkpoint the information a
 
 import datetime
 
-import botocore.exceptions
 import pandas as pd
 import boto3
 import awswrangler as wr
@@ -16,7 +15,7 @@ from typing import List
 from .helpers import create_dynamodb_table_if_not_exists
 
 
-class BookMarks(object):
+class DataLoader(object):
     valid_file_formats = ["csv", "parquet", "json", "xml"]
     """
     The constructor initializes the utility with S3 location information and table to store bookmark info.
@@ -170,14 +169,15 @@ class BookMarks(object):
     This method registers the information about the last read timestamp in DynamoDB table
     """
 
-    def register_bookmark(self, latest_timestamp):
+    def register_bookmark(self, latest_timestamp, status="IN_PROGRESS"):
         dynamodb_boto3_client = boto3.client("dynamodb")
         dynamodb_boto3_client.put_item(
             TableName=self.dynamo_db_table_for_bookmark_storage,
             Item={
                 'job_name': {'S': self.job_name},
                 'bookmark_timestamp': {'N': latest_timestamp.strftime('%s')},
-                'data_load_timestamp': {'N': datetime.datetime.now().strftime('%s')}
+                'data_load_timestamp': {'N': datetime.datetime.now().strftime('%s')},
+                'status': {'S': status}
             }
         )
 
@@ -185,17 +185,22 @@ class BookMarks(object):
     get latest timestamp information from DynamoDB table
     """
 
-    def get_latest_timestamp_from_db(self):
+    def get_latest_timestamp_from_db(self, status="COMPLETE"):
         dynamodb_boto3_client = boto3.client("dynamodb")
         result = dynamodb_boto3_client.query(
             TableName=self.dynamo_db_table_for_bookmark_storage,
             KeyConditionExpression="#job_name = :job_name",
+            FilterExpression='#status = :status',
             ExpressionAttributeNames={
-                '#job_name': 'job_name'
+                '#job_name': 'job_name',
+                '#status': 'status'
             },
             ExpressionAttributeValues={
                 ':job_name': {
                     'S': self.job_name
+                },
+                ':status': {
+                    'S': status
                 }
             },
             ScanIndexForward=False,
@@ -212,7 +217,8 @@ class BookMarks(object):
     """
 
     def load_data_from_s3(self) -> pd.DataFrame:
-        existing_timestamp = self.get_latest_timestamp_from_db()
+        global df
+        existing_timestamp = self.get_latest_timestamp_from_db(status="COMPLETE")
         print("--------------->>>>>>>")
         print(f"existing timestamp {existing_timestamp}")
         print("--------------->>>>>>>")
@@ -220,36 +226,46 @@ class BookMarks(object):
         latest_timestamp, files_to_process = self.get_latest_files_from_s3_using_bookmark(existing_timestamp)
         if not files_to_process:
             print("there are no files to process")
+            return pd.DataFrame()
         else:
             dataframes_to_union = []
 
             for file in files_to_process:
                 filename = f"s3://{self.s3_bucket_name}/{file.key}"
                 print(f"loading the filename: {filename}")
-                df = wr.s3.read_csv(filename, encoding='ISO-8859-1')
+
+                if self.format_of_the_data == 'parquet':
+                    df = wr.s3.read_parquet(filename)
+                elif self.format_of_the_data == 'csv':
+                    df = wr.s3.read_csv(filename, encoding='ISO-8859-1')
+                elif self.format_of_the_data == 'json':
+                    df = wr.s3.read_json(filename)
                 dataframes_to_union.append(df)
 
             final_dataframe_with_latest_data = pd.concat(dataframes_to_union, axis=0, ignore_index=True)
-            print(final_dataframe_with_latest_data)
-            self.register_bookmark(latest_timestamp)
+            self.register_bookmark(latest_timestamp, status="IN_PROGRESS")
             print("Data Load completed successfully")
             return final_dataframe_with_latest_data
 
+    def commit(self):
+        latest_timestamp = datetime.datetime.fromtimestamp(self.get_latest_timestamp_from_db(status="IN_PROGRESS"))
+        self.register_bookmark(latest_timestamp, status="COMPLETE")
+
 
 def test_register_bookmark():  # pragma: no cover
-    bm = BookMarks(
+    data_loader = DataLoader(
         "bucket-for-datalab",
         "folder-for-bookmark",
         "csv",
         "job_123"
         "bookmark_table")
 
-    bm.register_bookmark(datetime.datetime.fromtimestamp(0))
+    data_loader.register_bookmark(datetime.datetime.fromtimestamp(0))
 
 
 def test_validation():  # pragma: no cover
     with pytest.raises(Exception) as ex:
-        BookMarks(
+        DataLoader(
             "bucket-for-datalab",
             "folder-for-bookmark-test",
             "abcd",
@@ -258,16 +274,16 @@ def test_validation():  # pragma: no cover
 
 
 def test_latest_data_only():  # pragma: no cover
-    bm = BookMarks(
+    data_loader = DataLoader(
         "bucket-for-datalab",
         "folder-for-bookmark-test",
         "csv",
         "job_123"
         "bookmark_table1231")
 
-    latest_timestam, files = bm.get_latest_files_from_s3_using_bookmark(0)
+    latest_timestamp, files = data_loader.get_latest_files_from_s3_using_bookmark(0)
     print("---------->>>>>>")
-    print(latest_timestam)
+    print(latest_timestamp)
     print(files)
     print("---------->>>>>>")
 
@@ -276,14 +292,14 @@ def test_latest_data_only():  # pragma: no cover
 
 def test_data_load():  # pragma: no cover
 
-    bm = BookMarks(
+    data_loader = DataLoader(
         s3_bucket_name="bucket-for-datalab",
         s3_location="folder-for-bookmark-test",
         format_of_data="csv",
         job_name="job_123",
         dynamo_db_table_for_bookmark_storage="bookmark_table_abcd")
 
-    bm.load_data_from_s3()
+    data_loader.load_data_from_s3()
 
 
 def test_s3_latest_data():  # pragma: no cover
@@ -309,3 +325,20 @@ def test_s3_latest_data():  # pragma: no cover
 
     files = "\n".join(files)
     print(f"files are --> {files})")
+
+
+def test_get_latest_timestamp():
+    data_loader = DataLoader(
+        s3_bucket_name="bucket-for-datalab",
+        s3_location="folder-for-bookmark-test",
+        format_of_data="csv",
+        job_name="job_123",
+        dynamo_db_table_for_bookmark_storage="bookmark_table_test_get_latest_timestamp")
+
+    load1 = data_loader.load_data_from_s3()
+    load2 = data_loader.load_data_from_s3()
+    assert load1.shape[0] != 0 and load2.shape[0] != 0
+    data_loader.commit()
+    data_after_commit = data_loader.load_data_from_s3()
+    assert data_after_commit.shape[0] == 0
+    data_loader.load_data_from_s3()

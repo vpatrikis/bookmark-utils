@@ -4,7 +4,7 @@ import os
 import boto3
 import pytest
 import bookmark_utils
-from bookmark_utils import BookMarks
+from bookmark_utils import DataLoader
 
 boto_ses = boto3.session.Session()
 sts = boto_ses.client("sts")
@@ -62,7 +62,7 @@ class TestBookmark:
 
     # --- Test cases
     def test_load_data_from_s3(self):
-        bm = BookMarks(
+        data_loader = DataLoader(
             s3_bucket_name=self.test_s3_bucket,
             s3_location=self.test_s3_prefix,
             format_of_data="csv",
@@ -70,7 +70,7 @@ class TestBookmark:
             dynamo_db_table_for_bookmark_storage=self.test_dynamodb_table,
         )
 
-        bm.load_data_from_s3()
+        data_loader.load_data_from_s3()
 
 
 if __name__ == "__main__":
