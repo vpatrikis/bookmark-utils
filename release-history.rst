@@ -4,32 +4,15 @@ Release and Version History
 ==============================================================================
 
 
-1.0.1 (TODO)
+0.0.1 (2022-01-14)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 **Features and Improvements**
+
+- First release with basic features and APIs
 
 **Minor Improvements**
 
 **Bugfixes**
 
 **Miscellaneous**
-
-
-1.0.0 (YEAR-MONTH-DAY)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-**Features and Improvements**
-
-- add info here
-
-**Minor Improvements**
-
-- add info here
-
-**Bugfixes**
-
-- add info here
-
-**Miscellaneous**
-
-- add info here
