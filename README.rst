@@ -1,7 +1,7 @@
 Bookmark Utils
 ==============================================================================
 
-``bookmark_utils`` is a Python library that presents a solution to separate processed and unprocessed data from data sources when doing data processing with Glue Python Shell jobs. Specifically, this library will load the data from (csv) files on a S3 bucket and create a bookmark for the processed/loaded data in a DynamoDB table. Later, only new data files added into the S3 bucket will be processed/loaded by this library. The formerly processed/loaded data won't be loaded again. This will prevent duplicating data.
+``bookmark_utils`` is a Python library that presents a solution to separate processed and unprocessed data from data sources when doing data processing with Glue Python Shell jobs. Specifically, this library will load the data from (currently "csv", "parquet", "json") files on a S3 bucket and create a bookmark for the processed/loaded data in a DynamoDB table. Later, only new data files added into the S3 bucket will be processed/loaded by this library. The formerly processed/loaded data won't be loaded again. This will prevent duplicating data.
 
 .. contents:: Table of Content
     :depth: 1
